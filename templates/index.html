@@ -227,7 +227,7 @@
 
         <div class="download-form">
             <input id="youtube-url" type="text" class="download-input" placeholder="Paste your video link here">
-            <button onclick="downloadVideo()" class="download-button" id="downloadBtn">
+            <button  class="download-button" id="downloadBtn">
                 Download
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 18l6-6-6-6"/>
@@ -421,12 +421,12 @@
                     <h3>Download video as:</h3>
                     <table class="format-table">
                         <thead>
-                            <tr>
+                            {% comment %} <tr>
                                 <th>Quality</th>
                                 <th>Format</th>
                                 <th>Size</th>
                                 <th>Action</th>
-                            </tr>
+                            </tr> {% endcomment %}
                         </thead>
                         <tbody id="formatsList">
                             <!-- Table rows will be dynamically inserted here -->
@@ -444,81 +444,93 @@
             const downloadBtn = document.getElementById('downloadBtn');
             const videoDetails = document.getElementById('videoDetails');
             const formatsList = document.getElementById('formatsList');
-    
-            const downloadIcon = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
-                                  </svg>`;
-    
+            
+            const downloadIcon = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                                      <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+                                    </svg>`;
+
+                const speakerIcon = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                                        <path d="M4 9v6h4l5 5V4L8 9H4z" />
+                                        <path d="M16.5 9.4a5 5 0 0 1 0 5.2M19 7a9 9 0 0 1 0 10" />
+                                      </svg>`;
+                const playIcon = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                                        <polygon points="5 3 19 12 5 21 5 3" />
+                                      </svg>`;
+                const muteIcon = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
+                                        <path d="M4 9v6h4l5 5V4L8 9H4z" />
+                                        <line x1="21" y1="9" x2="15" y2="15" />
+                                        <line x1="15" y1="9" x2="21" y2="15" />
+                                      </svg>`;
+            
             const formats = [
-                { quality: "360p", format: "mp4", size: "10 MB" },
-                { quality: "720p", format: "mp4", size: "30 MB" },
-                { quality: "1080p", format: "mp4", size: "50 MB" },
-                { quality: "1080p", format: "webm", size: "45 MB" }
+                { quality: "Video Only",icons:muteIcon, format: "video" },
+                { quality: "Audio Only",icons: speakerIcon, format: "audio" },
+                { quality: "Video + Audio",icons:playIcon , format: "merged" },
             ];
-    
+
+            
             function createFormatRow(format) {
                 return `
                     <tr>
                         <td>${format.quality}</td>
-                        <td>${format.format}</td>
-                        <td>${format.size}</td>
+                        <td>${format.icons}</td>
                         <td>
-                            <button class="format-btn">
-                                ${downloadIcon}
-                                Download
+                            <button class="format-btn" data-format="${format.format}">
+                                ${downloadIcon} Download
                             </button>
                         </td>
                     </tr>
                 `;
             }
-    
+            
             function showVideoDetails() {
                 formatsList.innerHTML = formats.map(createFormatRow).join('');
                 videoDetails.classList.add('active');
-            }
-    
-            downloadBtn.addEventListener('click', () => {
-                showVideoDetails();
-                // You can still keep the API call here if you want to update with real data later
-                // downloadVideo();
-            });
-    
-            formatsList.addEventListener('click', (e) => {
-                if (e.target.closest('.format-btn')) {
-                    const row = e.target.closest('tr');
-                    const quality = row.cells[0].textContent;
-                    const format = row.cells[1].textContent;
-                    console.log(`Downloading: ${quality} ${format}`);
-                    // Implement actual download logic here
-                }
-            });
-    
-            // Keeping this function in case you want to use it later for real data
-            async function downloadVideo() {
-                const url = urlInput.value.trim();
-                if (!url) return;
-    
-                try {
-                    const response = await fetch('/yt_download/', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ youtube_url: url }),
+            
+                // Attach click event to each download button
+                document.querySelectorAll(".format-btn").forEach(button => {
+                    button.addEventListener("click", (event) => {
+                        const formatType = event.target.closest("button").dataset.format;
+                        downloadVideo(formatType);
                     });
-    
-                    const data = await response.json();
-    
-                    if (data.success) {
-                        // Update video details with real data if needed
-                        console.log("Video data received:", data);
-                    } else {
-                        console.error("Error:", data.error);
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                }
+                });
             }
+            
+            function downloadVideo(formatType) {
+                const youtubeUrl = urlInput.value.trim();
+                console.log(formatType,"+++++++{+++++++++++++++}")
+                if (!youtubeUrl) {
+                    alert("Please enter a YouTube URL");
+                    return;
+                }
+            
+                fetch("/yt_download/", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
+                    body: JSON.stringify({ youtube_url: youtubeUrl, format: formatType })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        let downloadUrl = "";
+                        if (formatType === "video") downloadUrl = data.video_only_url;
+                        if (formatType === "audio") downloadUrl = data.audio_only_url;
+                        if (formatType === "merged") downloadUrl = data.merged_url;
+                        
+
+                    } else {
+                        alert("Download failed: " + data.error);
+                    }
+                })
+                .catch(error => console.error("Error:", error));
+            }
+            
+            function getCSRFToken() {
+                return document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+            }
+            
+            downloadBtn.addEventListener('click', showVideoDetails);
+
         </script>
 
 
@@ -583,7 +595,54 @@
                  Transcribe
             </button>
         </div>
-        
+        <style>
+            #transcription-result {
+                max-width: 48rem;
+                margin: 2rem auto;
+                padding: 1.5rem;
+                color: #ffffff;
+                font-size: 1rem;
+                line-height: 1.6;
+                text-align: center;
+                background-color: rgba(255, 255, 255, 0.05);
+                border-radius: 0.5rem;
+                min-height: 100px;
+                transition: all 0.3s ease;
+            }
+            
+            #transcription-result:empty {
+                display: none;
+            }
+            
+            #transcription-result.loading {
+                position: relative;
+                background: linear-gradient(90deg, 
+                    rgba(255, 255, 255, 0.05) 25%, 
+                    rgba(255, 255, 255, 0.08) 50%, 
+                    rgba(255, 255, 255, 0.05) 75%
+                );
+                background-size: 200% 100%;
+                animation: loading 1.5s infinite;
+            }
+            
+            @keyframes loading {
+                0% {
+                    background-position: 200% 0;
+                }
+                100% {
+                    background-position: -200% 0;
+                }
+            }
+            
+            /* Media query for mobile responsiveness */
+            @media (max-width: 640px) {
+                #transcription-result {
+                    margin: 0.7rem 0.3rem;
+                    padding: 1rem;
+                    font-size: 0.875rem;
+                }
+            }
+        </style>
         <div id="transcription-result"></div>
 
         <div class="norton-badge">
@@ -681,7 +740,7 @@
         });
     </script>
 
-    <script>
+    {% comment %} <script>
         async function getCSRFToken() {
             const response = await fetch('/get_csrf/');
             const data = await response.json();
@@ -711,7 +770,7 @@
             })
             .catch(error => console.error('Error:', error));
         }
-    </script> 
+    </script>  {% endcomment %}
 
     <script>
         async function getCSRFToken() {

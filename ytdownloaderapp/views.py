@@ -8,7 +8,7 @@ from django.conf import settings
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import whisper
-
+import tempfile
 
 
 
@@ -33,85 +33,80 @@ def get_csrf_token(request):
 
 @csrf_exempt
 def yt_download(request):
-    print("hello world")
-
     if request.method == "GET":
         return JsonResponse({"message": "Use POST request with a YouTube URL"}, status=200)
 
     if request.method == "POST":
-        print("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
         try:
-            # Get YouTube URL from request
+            # Get YouTube URL and format from request
             data = json.loads(request.body)
             youtube_url = data.get("youtube_url", "").strip()
+            download_type = data.get("format", "merged")  # "video", "audio", "merged"
+
             if not youtube_url:
                 return JsonResponse({"error": "No URL provided"}, status=400)
 
             # Define save path
-            save_path = os.path.join(settings.MEDIA_ROOT, "download")
+            save_path = os.path.join(settings.MEDIA_ROOT, "downloads")
             os.makedirs(save_path, exist_ok=True)
 
-            # yt-dlp options to download video **without audio**
+            # Download options
             ydl_opts_video = {
-                'format': 'bv*[ext=mp4]',  # **Only best video, no audio**
+                'format': 'bv*[ext=mp4]',  # Best video (without audio)
                 'outtmpl': os.path.join(save_path, '%(title)s_video.mp4'),
                 'noplaylist': True,
             }
 
-            # yt-dlp options to download **audio only**
             ydl_opts_audio = {
-                'format': 'ba',  # **Only best audio**
+                'format': 'ba',  # Best audio only
                 'outtmpl': os.path.join(save_path, '%(title)s_audio.%(ext)s'),
                 'postprocessors': [{
                     'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',  # Convert to MP3
-                    'preferredquality': '192',  # Good quality
+                    'preferredcodec': 'mp3',
+                    'preferredquality': '192',
                 }],
                 'noplaylist': True,
             }
 
-            # Download video (without audio)
-            with yt_dlp.YoutubeDL(ydl_opts_video) as ydl:
-                ydl.download([youtube_url])
+            ydl_opts_merged = {
+                'format': 'bestvideo+bestaudio',  # Best video with audio
+                'outtmpl': os.path.join(save_path, '%(title)s.mp4'),
+                'noplaylist': True,
+                'merge_output_format': 'mp4',  # Ensures output is in mp4 format
+            }
 
-            # Download audio
-            with yt_dlp.YoutubeDL(ydl_opts_audio) as ydl:
-                ydl.download([youtube_url])
+            # Download based on user request
+            if download_type == "video":
+                with yt_dlp.YoutubeDL(ydl_opts_video) as ydl:
+                    ydl.download([youtube_url])
+            elif download_type == "audio":
+                with yt_dlp.YoutubeDL(ydl_opts_audio) as ydl:
+                    ydl.download([youtube_url])
+            else:  # "merged"
+                with yt_dlp.YoutubeDL(ydl_opts_merged) as ydl:
+                    ydl.download([youtube_url])
 
             # Find downloaded files
             files = os.listdir(save_path)
-            video_file = next((os.path.join(save_path, f) for f in files if f.endswith("_video.mp4")), None)
+            video_file = next((os.path.join(save_path, f) for f in files if f.endswith("_video_only.mp4")), None)
             audio_file = next((os.path.join(save_path, f) for f in files if f.endswith(".mp3")), None)
+            merged_file = next((os.path.join(save_path, f) for f in files if f.endswith(".mp4") and "_video" not in f), None)
 
-            if not video_file or not audio_file:
-                return JsonResponse({"error": "Video or audio download failed"}, status=500)
+            # Prepare response
+            response_data = {"success": True}
 
-            # Create merged file path
-            base_name = os.path.splitext(os.path.basename(video_file))[0].replace("_video", "")  # Remove suffix
-            merged_file = os.path.join(save_path, f"{base_name}_merged.mp4")
+            if download_type == "video" and video_file:
+                response_data["video_only_url"] = settings.MEDIA_URL + "download/" + os.path.basename(video_file)
+            elif download_type == "audio" and audio_file:
+                response_data["audio_only_url"] = settings.MEDIA_URL + "download/" + os.path.basename(audio_file)
+            elif download_type == "merged" and merged_file:
+                response_data["merged_url"] = settings.MEDIA_URL + "download/" + os.path.basename(merged_file)
+            else:
+                return JsonResponse({"error": "Download failed"}, status=500)
 
-            # Merge video and audio using ffmpeg
-            merge_command = [
-                "ffmpeg", "-i", video_file, "-i", audio_file,
-                "-c:v", "libx264", "-c:a", "aac", "-b:a", "192k",
-                "-strict", "experimental", merged_file
-            ]
-            subprocess.run(merge_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-            # Check if merged file was created
-            if not os.path.exists(merged_file):
-                return JsonResponse({"error": "Merging failed"}, status=500)
-
-            # Return URLs
-            return JsonResponse({
-                "success": True,
-                "video_only_url": settings.MEDIA_URL + "download/" + os.path.basename(video_file),  # Video without audio
-                "audio_only_url": settings.MEDIA_URL + "download/" + os.path.basename(audio_file),  # Audio only
-                "merged_url": settings.MEDIA_URL + "download/" + os.path.basename(merged_file)  # Video + Audio merged
-            })
+            return JsonResponse(response_data)
 
         except Exception as e:
-            print(f"Error: {str(e)}")
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Invalid request"}, status=400)
@@ -131,35 +126,34 @@ def yt_download_script(request):
             if not youtube_url:
                 return JsonResponse({"error": "No URL provided"}, status=400)
 
-            # Define save path
-            save_path = os.path.join(settings.MEDIA_ROOT, "download")
-            os.makedirs(save_path, exist_ok=True)
+            # Create a temporary directory
+            with tempfile.TemporaryDirectory() as temp_dir:
+                temp_audio_path = os.path.join(temp_dir, "temp_audio.mp3")
 
-            # yt-dlp options to download **audio only**
-            ydl_opts_audio = {
-                'format': 'ba',  # **Only best audio**
-                'outtmpl': os.path.join(save_path, '%(title)s_audio.%(ext)s'),
-                'postprocessors': [{
-                    'key': 'FFmpegExtractAudio',
-                    'preferredcodec': 'mp3',  # Convert to MP3
-                    'preferredquality': '192',  # Good quality
-                }],
-                'noplaylist': True,
-            }
+                # yt-dlp options to download **audio only** as a temporary file
+                ydl_opts_audio = {
+                    'format': 'bestaudio/best',
+                    'outtmpl': os.path.join(temp_dir, 'temp_audio'),
+                    'postprocessors': [{
+                        'key': 'FFmpegExtractAudio',
+                        'preferredcodec': 'mp3',
+                        'preferredquality': '192',
+                    }],
+                    'noplaylist': True,
+                }
 
-            # Download audio
-            with yt_dlp.YoutubeDL(ydl_opts_audio) as ydl:
-                ydl.download([youtube_url])
+                # Download audio
+                with yt_dlp.YoutubeDL(ydl_opts_audio) as ydl:
+                    ydl.download([youtube_url])
 
-            # Find the downloaded audio file
-            files = os.listdir(save_path)
-            audio_file = next((os.path.join(save_path, f) for f in files if f.endswith(".mp3")), None)
+                # Ensure the file exists before proceeding
+                if not os.path.exists(temp_audio_path):
+                    return JsonResponse({"error": "Audio download failed"}, status=500)
 
-            if not audio_file:
-                return JsonResponse({"error": "Audio download failed"}, status=500)
+                # Transcribe the audio using Whisper
+                text_transcription = transcribe_audio(temp_audio_path)
 
-            # Transcribe the audio using Whisper
-            text_transcription = transcribe_audio(audio_file)
+            # No need to delete manually, `tempfile.TemporaryDirectory()` handles cleanup
 
             # Return transcribed text to frontend
             return JsonResponse({
