@@ -1,0 +1,26 @@
+<table class="table">
+    <thead>
+        <tr>
+            <th scope="col">#</th>
+            <th scope="col">Resolution</th>
+            <th scope="col">Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for res in resolutions %}
+        <tr>
+            <th scope="row">{{ forloop.counter }}</th>
+            <td>{{ res.resolution }}</td>
+            <td>
+                <a href="" class="btn btn-primary">
+                    Download
+                </a>
+            </td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="3">No resolutions available.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
