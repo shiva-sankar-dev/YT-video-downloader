@@ -498,7 +498,6 @@
             
             function downloadVideo(formatType) {
                 const youtubeUrl = urlInput.value.trim();
-                console.log(formatType,"+++++++{+++++++++++++++}")
                 if (!youtubeUrl) {
                     alert("Please enter a YouTube URL");
                     return;
@@ -511,19 +510,23 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success) {
-                        let downloadUrl = "";
-                        if (formatType === "video") downloadUrl = data.video_only_url;
-                        if (formatType === "audio") downloadUrl = data.audio_only_url;
-                        if (formatType === "merged") downloadUrl = data.merged_url;
-                        
-
+                    if (data.success && data.download_url) {
+                        // Create a temporary anchor tag to trigger download
+                        const downloadLink = document.createElement("a");
+                        downloadLink.href = data.download_url;
+                        downloadLink.target = "_blank";  // Open in new tab for browsers that block auto-download
+                        downloadLink.download = "";  // Let the browser handle filename
+            
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+                        document.body.removeChild(downloadLink);
                     } else {
-                        alert("Download failed: " + data.error);
+                        alert("Download failed: " + (data.error || "Unknown error"));
                     }
                 })
                 .catch(error => console.error("Error:", error));
             }
+            
             
             function getCSRFToken() {
                 return document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
