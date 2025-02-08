@@ -31,54 +31,137 @@ from django.middleware.csrf import get_token
 def get_csrf_token(request):
     return JsonResponse({'csrfToken': get_token(request)}) 
 
+import os
 import json
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 import yt_dlp
+from django.http import JsonResponse, FileResponse
+from django.conf import settings
+
+import json
+import yt_dlp
+import os
+import tempfile
+from django.http import FileResponse, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
 @csrf_exempt
 def yt_download(request):
-    if request.method == "GET":
-        return JsonResponse({"message": "Use POST request with a YouTube URL"}, status=200)
-
     if request.method == "POST":
         try:
             data = json.loads(request.body)
             youtube_url = data.get("youtube_url", "").strip()
-            download_type = data.get("format", "merged")  # "video", "audio", "merged"
-            # print(download_type,"________________________")
+            download_type = data.get("format", "merged")
 
             if not youtube_url:
                 return JsonResponse({"error": "No URL provided"}, status=400)
 
-            # Define extraction options to get the direct URL instead of downloading
-            ydl_opts = {
-                'format': 'best' if download_type == "merged" else
-                          'bv*[ext=mp4][protocol^=http]/b' if download_type == "video" else
-                          'ba',  # best audio
-                'quiet': True,  # Suppresses unnecessary logs
-                'noplaylist': True,
-                'extract_flat': False,
-                'force_generic_extractor': False,
-            }
+            # Create a temporary directory
+            temp_dir = tempfile.mkdtemp()
+            file_template = os.path.join(temp_dir, "%(title)s.%(ext)s")
+
+            # Set download options
+            if download_type == "merged":  # Video + Audio
+                ydl_opts = {
+                    "format": "bestvideo+bestaudio",
+                    "outtmpl": file_template,
+                    "merge_output_format": "mp4",
+                    "postprocessors": [
+                        {"key": "FFmpegVideoConvertor", "preferedformat": "mp4"},
+                        {"key": "FFmpegEmbedSubtitle"},
+                    ],
+                }
+            elif download_type == "video":  # Video Only
+                ydl_opts = {
+                    "format": "bestvideo[ext=mp4]/bestvideo",
+                    "outtmpl": file_template,
+                }
+            elif download_type == "audio":  # Audio Only
+                ydl_opts = {
+                    "format": "bestaudio",
+                    "outtmpl": file_template,
+                    "postprocessors": [
+                        {"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "192"},
+                    ],
+                }
+            else:
+                return JsonResponse({"error": "Invalid format type"}, status=400)
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(youtube_url, download=False)  # Fetch video details without downloading
-                
-                if not info:
-                    return JsonResponse({"error": "Failed to retrieve video info"}, status=500)
-                
-                # Get the best format URL
-                download_url = info.get("url", None)
-                if not download_url:
-                    return JsonResponse({"error": "Download URL not found"}, status=500)
+                info = ydl.extract_info(youtube_url, download=True)
+                filename = ydl.prepare_filename(info)
 
-                return JsonResponse({"success": True, "download_url": download_url})
+            # Fix file extension
+            if download_type == "merged":
+                filename = filename.rsplit(".", 1)[0] + ".mp4"
+            elif download_type == "audio":
+                filename = filename.rsplit(".", 1)[0] + ".mp3"
+
+            # Open file for streaming
+            response = FileResponse(open(filename, "rb"), as_attachment=True, filename=os.path.basename(filename))
+
+            # Delete file after response is sent
+            response["File-Path"] = filename  # Custom header to track the file for deletion
+
+            def delete_file(request, response):
+                try:
+                    os.remove(response["File-Path"])
+                    os.rmdir(temp_dir)  # Remove temp directory if empty
+                except Exception as e:
+                    print(f"Error deleting file: {e}")
+
+            response.close = lambda: delete_file(request, response)  # Hook delete after response closes
+
+            return response
 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Invalid request"}, status=400)
+
+
+
+
+
+import json
+import yt_dlp
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+
+@csrf_exempt
+def fetch_video_details(request):
+    if request.method == "POST":
+        try:
+            data = json.loads(request.body)
+            youtube_url = data.get("youtube_url", "").strip()
+
+            if not youtube_url:
+                return JsonResponse({"error": "No URL provided"}, status=400)
+
+            ydl_opts = {
+                "quiet": True,
+                "skip_download": True,
+                "extract_flat": False,
+            }
+
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(youtube_url, download=False)
+
+            video_data = {
+                "title": info.get("title"),
+                "thumbnail": info.get("thumbnail"),
+                "duration": info.get("duration_string"),  # Get duration in HH:MM:SS format
+            }
+
+            return JsonResponse(video_data)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid request"}, status=400)
+
+
+
+
 
 
 def transcribe_audio(audio_file_path):

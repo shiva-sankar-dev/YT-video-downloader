@@ -61,7 +61,7 @@
             display: flex;
             justify-content: center;
             gap: 1rem;
-            margin-top: 1rem;
+            margin-top: 2rem;
         }
 
         .tab {
@@ -141,7 +141,6 @@
         .description {
             max-width: 48rem;
             margin: 0 auto 4rem;
-            margin-top: 1rem;
             color: #d1d5db;
         }
 
@@ -203,34 +202,19 @@
             }
         }
     </style>
-    <style>
-        #loadingSpinner {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            color: white;
-            background-color: black;
-            padding: 15px 20px;
-            border-radius: 10px;
-            font-size: 16px;
-            z-index: 9999;
-        }
-        </style>
-        
 </head>
 <body>
     <header>
         <a href="#" class="logo">
             <div class="logo-square"></div>
-            <span>YTBridge </span>
+            <span>ssyoutube</span>
         </a>
-        {% comment %} <button class="lang-selector">
+        <button class="lang-selector">
             EN
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M6 9l6 6 6-6"/>
             </svg>
-        </button> {% endcomment %}
+        </button>
     </header>
 
     <div class="tabs">
@@ -243,16 +227,12 @@
 
         <div class="download-form">
             <input id="youtube-url" type="text" class="download-input" placeholder="Paste your video link here">
-            <button class="download-button" id="downloadBtn">
+            <button  class="download-button" id="downloadBtn">
                 Download
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M9 18l6-6-6-6" />
+                    <path d="M9 18l6-6-6-6"/>
                 </svg>
             </button>
-            
-            <div id="loadingSpinner" style="display: none;">
-                <p>Loading video details...</p>
-            </div>
         </div>
 
 
@@ -426,33 +406,15 @@
             }
         </style>
 
-        <style>
-            #downloadProgressBox {
-                position: fixed;
-                bottom: 20px;
-                right: 20px;
-                background-color: #333;
-                color: white;
-                padding: 10px 15px;
-                border-radius: 10px;
-                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-                font-family: 'Arial', sans-serif;
-                z-index: 9999;
-                display: none;
-                max-width: 300px;
-                font-size: 14px;
-            }
-          </style>
-          
-          
+
 
 
         <div class="video-details" id="videoDetails">
             <div class="video-grid">
                 <div class="thumbnail-container">
-                    <img id="videoThumbnail" src="" alt="Video thumbnail">
-                    <h2 class="video-title" id="videoTitle"></h2>
-                    <p class="video-duration" id="videoDuration"></p>
+                    <img id="videoThumbnail" src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Screenshot%202025-02-06%20190734-SyflC8cBlWVH46VuioxX3kcshMOfaB.png" alt="Video thumbnail">
+                    <h2 class="video-title" id="videoTitle">Version 4.6 'Two Worlds'</h2>
+                    <p class="video-duration" id="videoDuration">Duration: 4:57</p>
                 </div>
 
                 <div class="download-options">
@@ -483,7 +445,6 @@
             const videoDetails = document.getElementById('videoDetails');
             const formatsList = document.getElementById('formatsList');
             
-            
             const downloadIcon = `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4">
                                       <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/>
                                     </svg>`;
@@ -512,6 +473,7 @@
                 return `
                     <tr>
                         <td>${format.quality}</td>
+                        <td>${format.icons}</td>
                         <td>
                             <button class="format-btn" data-format="${format.format}">
                                 ${downloadIcon} Download
@@ -533,8 +495,6 @@
                     });
                 });
             }
-
-
             
             function downloadVideo(formatType) {
                 const youtubeUrl = urlInput.value.trim();
@@ -543,136 +503,36 @@
                     return;
                 }
             
-                // Create or get the progress box element
-                let progressBox = document.getElementById("downloadProgressBox");
-                if (!progressBox) {
-                    progressBox = document.createElement("div");
-                    progressBox.id = "downloadProgressBox";
-                    progressBox.innerHTML = `<p id="progressMessage"></p>`;
-                    document.body.appendChild(progressBox);
-                }
-            
-                // Set the initial message based on the download type
-                const progressMessage = document.getElementById("progressMessage");
-                const downloadTypes = {
-                    video: "Processing Please Wait...",
-                    audio: "Processing Please Wait...",
-                    merged: "Processing Please Wait..."
-                };
-            
-                progressMessage.textContent = downloadTypes[formatType] || "Processing download...";
-                progressBox.style.display = "block";
-            
                 fetch("/yt_download/", {
                     method: "POST",
                     headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
                     body: JSON.stringify({ youtube_url: youtubeUrl, format: formatType })
                 })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error("Download failed");
-                    }
-                    return response.blob();
-                })
-                .then(blob => {
-                    const downloadLink = document.createElement("a");
-                    downloadLink.href = URL.createObjectURL(blob);
-                    downloadLink.download = `download.${formatType === "audio" ? "mp3" : "mp4"}`;
-                    document.body.appendChild(downloadLink);
-                    downloadLink.click();
-                    document.body.removeChild(downloadLink);
-            
-                    progressMessage.textContent = "Download completed successfully!";
-                })
-                .catch(error => {
-                    progressMessage.textContent = `Error: ${error.message}`;
-                })
-                .finally(() => {
-                    setTimeout(() => {
-                        progressBox.style.display = "none"; // Hide after 5 seconds
-                    }, 5000);
-                });
-            }
-            
-            function getCSRFToken() {
-                return document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
-            }
-            downloadBtn.addEventListener('click', showVideoDetails);
-
-
-            function formatDuration(duration) {
-                if (typeof duration === "string") {
-                    // Handle format like "1:15" or "2:30"
-                    const parts = duration.split(":").map(Number);
-                    if (parts.length === 2) {
-                        return `${parts[0]}m ${parts[1]}s`;
-                    } else if (parts.length === 3) {
-                        return `${parts[0]}h ${parts[1]}m ${parts[2]}s`;
-                    }
-                    return duration; // Fallback if format is unexpected
-                }
-            
-                if (typeof duration === "number") {
-                    const minutes = Math.floor(duration / 60);
-                    const seconds = duration % 60;
-                    return `${minutes > 0 ? minutes + "m " : ""}${seconds}s`;
-                }
-            
-                return "0s"; // Fallback for unexpected cases
-            }
-
-            document.getElementById("downloadBtn").addEventListener("click", function () {
-                const youtubeUrl = document.getElementById("youtube-url").value.trim();
-                const loadingSpinner = document.getElementById("loadingSpinner");
-                const videoDetails = document.getElementById("videoDetails");
-                
-                if (!youtubeUrl) {
-                    alert("Please enter a YouTube URL");
-                    return;
-                }
-            
-                // Show loading spinner and hide the details initially
-                loadingSpinner.style.display = "block";
-                videoDetails.style.display = "none";
-            
-                fetch("/fetch_video_details/", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json", "X-CSRFToken": getCSRFToken() },
-                    body: JSON.stringify({ youtube_url: youtubeUrl })
-                })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.error) {
-                        alert("Error: " + data.error);
-                        return;
+                    if (data.success && data.download_url) {
+                        // Create a temporary anchor tag to trigger download
+                        const downloadLink = document.createElement("a");
+                        downloadLink.href = data.download_url;
+                        downloadLink.target = "_blank";  // Open in new tab for browsers that block auto-download
+                        downloadLink.download = "";  // Let the browser handle filename
+            
+                        document.body.appendChild(downloadLink);
+                        downloadLink.click();
+                        document.body.removeChild(downloadLink);
+                    } else {
+                        alert("Download failed: " + (data.error || "Unknown error"));
                     }
-                
-                    // Update the UI with video details
-                    document.getElementById("videoThumbnail").src = data.thumbnail;
-                    document.getElementById("videoTitle").textContent = data.title;
-                    
-                    // Format duration and display
-                    const formattedDuration = formatDuration(data.duration);
-                    document.getElementById("videoDuration").textContent = `Duration: ${formattedDuration}`;
-                
-                    // Show video details after successful data fetch
-                    videoDetails.style.display = "block";
                 })
-                .catch(error => {
-                    console.error("Error fetching video details:", error);
-                    alert("Failed to load video details.");
-                })
-                .finally(() => {
-                    // Hide loading spinner in all cases
-                    loadingSpinner.style.display = "none";
-                });
-            });
+                .catch(error => console.error("Error:", error));
+            }
+            
             
             function getCSRFToken() {
                 return document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
             }
             
-            
+            downloadBtn.addEventListener('click', showVideoDetails);
 
         </script>
 
@@ -683,19 +543,19 @@
 
 
 
-        {% comment %} <div class="norton-badge">
+        <div class="norton-badge">
             <span>Scanned by</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                 <path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5.3 8.3l-5.5 5.5c-.39.39-1.02.39-1.41 0L7.7 13.1c-.39-.39-.39-1.02 0-1.41.39-.39 1.02-.39 1.41 0l1.89 1.89 4.99-4.99c.39-.39 1.02-.39 1.41 0 .39.39.39 1.03 0 1.41z"/>
             </svg>
             <span>Norton™ Safe Web</span>
-        </div> {% endcomment %}
+        </div>
 
         <p class="description">
-            YTBridge is the ultimate solution for downloading YouTube videos effortlessly. Designed to overcome platform restrictions, our tool ensures a seamless and high-speed downloading experience. With just a few clicks, you can save your favorite videos in high quality and watch them anytime, anywhere. Enjoy the freedom to access content on your terms with YTBridge.
+            SSYouTube is your go-to online video downloader, crafted to bypass YouTube's download restrictions. We bridge the gap by offering a fast and reliable way to download YouTube videos. With our user-friendly interface, accessing your favorite content has never been easier.
         </p>
 
-        {% comment %} <div class="platforms">
+        <div class="platforms">
             <h2>Supported Platforms:</h2>
             <div class="platform-icons">
                 <!-- Windows Icon -->
@@ -719,11 +579,11 @@
                     <path fill="currentColor" d="M12.074 4.21c.31-.27.57-.12.57.33v14.92c0 .45-.26.6-.57.33l-9.23-8.13c-.31-.27-.57-.82-.57-1.21V13.55c0-.39.26-.94.57-1.21l9.23-8.13zm1.85 0c-.31-.27-.57-.12-.57.33v14.92c0 .45.26.6.57.33l9.23-8.13c.31-.27.57-.82.57-1.21V13.55c0-.39-.26-.94-.57-1.21l-9.23-8.13z"/>
                 </svg>
             </div>
-        </div> {% endcomment %}
+        </div>
 
         <ul class="features">
             <li>Download YouTube videos free with our leading YouTube downloader.</li>
-            <li>Choose from multiple formats: Video, Audio, and Video with Audio.</li>
+            <li>Choose from multiple formats: MP4, MP3, SQ, HD, and Full HD.</li>
             <li>Download on any device: Works seamlessly on desktop and mobile.</li>
         </ul>
     </main>
@@ -788,19 +648,19 @@
         </style>
         <div id="transcription-result"></div>
 
-        {% comment %} <div class="norton-badge">
+        <div class="norton-badge">
             <span>Scanned by</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none">
                 <path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5.3 8.3l-5.5 5.5c-.39.39-1.02.39-1.41 0L7.7 13.1c-.39-.39-.39-1.02 0-1.41.39-.39 1.02-.39 1.41 0l1.89 1.89 4.99-4.99c.39-.39 1.02-.39 1.41 0 .39.39.39 1.03 0 1.41z"/>
             </svg>
             <span>Norton™ Safe Web</span>
-        </div> {% endcomment %}
+        </div>
 
         <p class="description">
-            YTBridge is the ultimate solution for downloading YouTube videos effortlessly. Designed to overcome platform restrictions, our tool ensures a seamless and high-speed downloading experience. With just a few clicks, you can save your favorite videos in high quality and watch them anytime, anywhere. Enjoy the freedom to access content on your terms with YTBridge.
+            SSYouTube is your go-to online video downloader, crafted to bypass YouTube's download restrictions. We bridge the gap by offering a fast and reliable way to download YouTube videos. With our user-friendly interface, accessing your favorite content has never been easier.
         </p>
 
-        {% comment %} <div class="platforms">
+        <div class="platforms">
             <h2>Supported Platforms:</h2>
             <div class="platform-icons">
                 <!-- Windows Icon -->
@@ -824,11 +684,11 @@
                     <path fill="currentColor" d="M12.074 4.21c.31-.27.57-.12.57.33v14.92c0 .45-.26.6-.57.33l-9.23-8.13c-.31-.27-.57-.82-.57-1.21V13.55c0-.39.26-.94.57-1.21l9.23-8.13zm1.85 0c-.31-.27-.57-.12-.57.33v14.92c0 .45.26.6.57.33l9.23-8.13c.31-.27.57-.82.57-1.21V13.55c0-.39-.26-.94-.57-1.21l-9.23-8.13z"/>
                 </svg>
             </div>
-        </div> {% endcomment %}
+        </div>
 
         <ul class="features">
             <li>Download YouTube videos free with our leading YouTube downloader.</li>
-            <li>Choose from multiple formats: Video, Audio, and Video with Audio.</li>
+            <li>Choose from multiple formats: MP4, MP3, SQ, HD, and Full HD.</li>
             <li>Download on any device: Works seamlessly on desktop and mobile.</li>
         </ul>
     </main>
