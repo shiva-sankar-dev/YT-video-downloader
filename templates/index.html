@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YTBridge</title>
-    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
+    <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.png' %}" style="height: 200px;width: 200px;">
     <style>
         :root {
             --bg-primary: #000000;
@@ -42,11 +42,25 @@
         }
 
         .logo-square {
-            width: 24px;
-            height: 24px;
-            background: var(--red);
-            border-radius: 4px;
-        }
+    width: 74px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    background-color: black;
+    margin-left: 30%;
+}
+
+.logo-image {
+    max-width: 500%;
+    max-height: 500%;
+    border-radius: 4px;
+    margin-left: 40%;
+
+}
+
+        
 
         .lang-selector {
             display: flex;
@@ -240,9 +254,13 @@
 <body>
     <header>
         <a href="#" class="logo">
-            <div class="logo-square"></div>
-            <span>YTBridge </span>
-        </a>
+            <div class="logo-square" style="margin-left: 60%;">
+              <img src="{% static 'images/logo.png' %}" alt="Logo" class="logo-image">
+              <span style="margin-left: 2%;">YTBridge</span>
+            </div>
+           
+          </a>
+          
         {% comment %} <button class="lang-selector">
             EN
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -844,12 +862,48 @@
             </div>
         </div>
         
-        <div id="loadingIndicator" style="display: none; color: white; font-weight: bold;text-align: center;">
+        <div id="loadingIndicator" style="display: none; color: white; font-weight: bold; text-align: center;">
             <svg class="spinner" viewBox="0 0 50 50" width="20px" height="20px">
                 <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="4"></circle>
             </svg>
-            Please wait... Transcribing the audio.
+            Please wait... Transcribing the video.
         </div>
+        
+        <style>
+            .spinner {
+                animation: spin 1s linear infinite;
+            }
+        
+            .path {
+                stroke: #ffffff; /* White color */
+                stroke-linecap: round;
+                stroke-dasharray: 80, 200;
+                stroke-dashoffset: 0;
+                animation: dash 1.5s ease-in-out infinite;
+            }
+        
+            @keyframes spin {
+                100% {
+                    transform: rotate(360deg);
+                }
+            }
+        
+            @keyframes dash {
+                0% {
+                    stroke-dasharray: 1, 200;
+                    stroke-dashoffset: 0;
+                }
+                50% {
+                    stroke-dasharray: 80, 200;
+                    stroke-dashoffset: -40;
+                }
+                100% {
+                    stroke-dasharray: 80, 200;
+                    stroke-dashoffset: -120;
+                }
+            }
+        </style>
+        
 
         <style>
             .spinner {
