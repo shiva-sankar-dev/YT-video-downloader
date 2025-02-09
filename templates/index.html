@@ -1,14 +1,16 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YouTube Video & Script Downloader</title>
+    <title>YTBridge</title>
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico">
     <style>
         :root {
-            --bg-primary: #0a0633;
-            --red: #dc2626;
-            --red-hover: #b91c1c;
+            --bg-primary: #000000;
+            --red: #60d143;
+            --red-hover: #61d065;
         }
 
         * {
@@ -84,7 +86,8 @@
             max-width: 64rem;
             margin: 0 auto;
             padding: 2rem 1rem 4rem;
-            text-align: center;
+            text-align: left;
+            flex: 1;
         }
 
         h1 {
@@ -106,6 +109,9 @@
             border-radius: 0.375rem;
             border: 1px solid #e5e7eb;
             font-size: 1rem;
+        }
+        ::placeholder{
+            width: 130%;
         }
 
         .download-button {
@@ -188,6 +194,13 @@
             display: none;
         }
 
+        @media (max-width:768px){
+            .download-name ,.transcribe-name{
+                display: none;
+            }
+
+        }
+
         @media (max-width: 640px) {
             h1 {
                 font-size: 2rem;
@@ -200,6 +213,10 @@
             .platform-icon {
                 width: 48px;
                 height: 48px;
+            }
+            
+            #main-heading{
+                font-size: 1.5em;
             }
         }
     </style>
@@ -215,6 +232,7 @@
             border-radius: 10px;
             font-size: 16px;
             z-index: 9999;
+            
         }
         </style>
         
@@ -244,7 +262,7 @@
         <div class="download-form">
             <input id="youtube-url" type="text" class="download-input" placeholder="Paste your video link here">
             <button class="download-button" id="downloadBtn">
-                Download
+                <span class="download-name">Download</span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M9 18l6-6-6-6" />
                 </svg>
@@ -261,11 +279,7 @@
 
 
         <style>
-            :root {
-                --bg-primary: #0a0633;
-                --red: #dc2626;
-                --red-hover: #b91c1c;
-            }
+
     
             * {
                 margin: 0;
@@ -275,10 +289,12 @@
     
             body {
                 font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-                background-color: var(--bg-primary);
                 color: white;
                 min-height: 100vh;
-                padding: 2rem 1rem;
+                padding-top: 0.5rem;
+                display: flex;
+                flex-direction: column;
+                margin: 0;
             }
     
             .container {
@@ -597,39 +613,60 @@
             function getCSRFToken() {
                 return document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
             }
-            downloadBtn.addEventListener('click', showVideoDetails);
+
 
 
             function formatDuration(duration) {
                 if (typeof duration === "string") {
-                    // Handle format like "1:15" or "2:30"
                     const parts = duration.split(":").map(Number);
+                    console.log("Duration parts:", parts);
+            
                     if (parts.length === 2) {
                         return `${parts[0]}m ${parts[1]}s`;
                     } else if (parts.length === 3) {
                         return `${parts[0]}h ${parts[1]}m ${parts[2]}s`;
+                    } else if (parts.length === 1 && parts[0] > 0) {
+                        return `${parts[0]}s`; // Single second part case
                     }
-                    return duration; // Fallback if format is unexpected
+                    return "0s";
                 }
             
                 if (typeof duration === "number") {
                     const minutes = Math.floor(duration / 60);
                     const seconds = duration % 60;
-                    return `${minutes > 0 ? minutes + "m " : ""}${seconds}s`;
+            
+                    console.log(`Minutes: ${minutes}, Seconds: ${seconds}`);
+            
+                    return `${minutes > 0 ? minutes + "m " : ""}${seconds > 0 ? seconds + "s" : ""}`;
                 }
             
-                return "0s"; // Fallback for unexpected cases
+                console.warn("Unexpected duration format:", duration);
+                return "0s";
             }
 
+                                    
+            function isValidYouTubeURL(url) {
+                const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
+                return youtubeRegex.test(url);
+            }
             document.getElementById("downloadBtn").addEventListener("click", function () {
                 const youtubeUrl = document.getElementById("youtube-url").value.trim();
                 const loadingSpinner = document.getElementById("loadingSpinner");
                 const videoDetails = document.getElementById("videoDetails");
-                
+
+
+
                 if (!youtubeUrl) {
                     alert("Please enter a YouTube URL");
                     return;
                 }
+            
+                if (!isValidYouTubeURL(youtubeUrl)) {
+                    alert("Invalid YouTube URL. Please enter a valid YouTube link.");
+                    return;
+                }
+
+                
             
                 // Show loading spinner and hide the details initially
                 loadingSpinner.style.display = "block";
@@ -657,6 +694,8 @@
                 
                     // Show video details after successful data fetch
                     videoDetails.style.display = "block";
+                    showVideoDetails();
+
                 })
                 .catch(error => {
                     console.error("Error fetching video details:", error);
@@ -692,7 +731,7 @@
         </div> {% endcomment %}
 
         <p class="description">
-            YTBridge is the ultimate solution for downloading YouTube videos effortlessly. Designed to overcome platform restrictions, our tool ensures a seamless and high-speed downloading experience. With just a few clicks, you can save your favorite videos in high quality and watch them anytime, anywhere. Enjoy the freedom to access content on your terms with YTBridge.
+            YTBridge is the ultimate solution for downloading YouTube videos effortlessly. Designed to overcome platform restrictions, our tool ensures a seamless and high-speed downloading experience. With just a few clicks, you can save your favorite videos in high quality and watch them anytime, anywhere. Additionally, YTBridge offers a powerful transcription feature, allowing you to extract text from videos with ease. Enjoy the freedom to access and convert content on your terms with YTBridge.
         </p>
 
         {% comment %} <div class="platforms">
@@ -725,6 +764,7 @@
             <li>Download YouTube videos free with our leading YouTube downloader.</li>
             <li>Choose from multiple formats: Video, Audio, and Video with Audio.</li>
             <li>Download on any device: Works seamlessly on desktop and mobile.</li>
+            <li>Easily generate transcripts: Convert video speech into text for quick and accurate transcription.</li>
         </ul>
     </main>
 
@@ -735,22 +775,26 @@
         <div class="download-form">
             <input id="youtubeScriptUrl" type="text" class="download-input" placeholder="Paste your video link here">
             <button onclick="downloadScript()" class="download-button">
-                 Transcribe
+                 <span class="transcribe-name">Transcribe</span>
+                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 18l6-6-6-6" />
+                </svg>
             </button>
         </div>
         <style>
             #transcription-result {
                 max-width: 48rem;
-                margin: 2rem auto;
+                margin: 1rem auto;
                 padding: 1.5rem;
                 color: #ffffff;
                 font-size: 1rem;
                 line-height: 1.6;
-                text-align: center;
+                text-align: left;
                 background-color: rgba(255, 255, 255, 0.05);
-                border-radius: 0.5rem;
+                border-radius: 0.75rem;
                 min-height: 100px;
                 transition: all 0.3s ease;
+                border: 1px solid rgba(255, 255, 255, 0.1);
             }
             
             #transcription-result:empty {
@@ -786,7 +830,38 @@
                 }
             }
         </style>
-        <div id="transcription-result"></div>
+        <div id="transcription-container" style="display: none;">
+            <!-- Copy Button ABOVE the Text Div -->
+            <div>
+                <button id="copyButton" 
+                    style="background: var(--red); color: white; border: none; padding: 5px 10px; cursor: pointer; border-radius: 5px;">
+                    Copy
+                </button>
+            </div>
+        
+            <!-- Transcription Result Box -->
+            <div id="transcription-result">
+            </div>
+        </div>
+        
+        <div id="loadingIndicator" style="display: none; color: white; font-weight: bold;text-align: center;">
+            <svg class="spinner" viewBox="0 0 50 50" width="20px" height="20px">
+                <circle class="path" cx="25" cy="25" r="20" fill="none" stroke-width="4"></circle>
+            </svg>
+            Please wait... Transcribing the audio.
+        </div>
+
+        <style>
+            .spinner {
+                animation: rotate 1s linear infinite;
+                stroke: white;
+            }
+            @keyframes rotate {
+                100% {
+                    transform: rotate(360deg);
+                }
+            }
+        </style>
 
         {% comment %} <div class="norton-badge">
             <span>Scanned by</span>
@@ -797,7 +872,7 @@
         </div> {% endcomment %}
 
         <p class="description">
-            YTBridge is the ultimate solution for downloading YouTube videos effortlessly. Designed to overcome platform restrictions, our tool ensures a seamless and high-speed downloading experience. With just a few clicks, you can save your favorite videos in high quality and watch them anytime, anywhere. Enjoy the freedom to access content on your terms with YTBridge.
+            YTBridge is the ultimate solution for downloading YouTube videos effortlessly. Designed to overcome platform restrictions, our tool ensures a seamless and high-speed downloading experience. With just a few clicks, you can save your favorite videos in high quality and watch them anytime, anywhere. Additionally, YTBridge offers a powerful transcription feature, allowing you to extract text from videos with ease. Enjoy the freedom to access and convert content on your terms with YTBridge.
         </p>
 
         {% comment %} <div class="platforms">
@@ -830,8 +905,31 @@
             <li>Download YouTube videos free with our leading YouTube downloader.</li>
             <li>Choose from multiple formats: Video, Audio, and Video with Audio.</li>
             <li>Download on any device: Works seamlessly on desktop and mobile.</li>
+            <li>Easily generate transcripts: Convert video speech into text for quick and accurate transcription.</li>
         </ul>
     </main>
+
+    <style>
+        footer {
+            background-color: #222;
+            color: white;
+            text-align: center;
+            padding: 10px 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        @media (max-width: 600px) {
+            footer {
+                font-size: 12px;
+            }
+        }
+        
+    </style>
+    
+
+
+    
 
     <script>
         // Tab switching functionality
@@ -921,31 +1019,70 @@
             const data = await response.json();
             return data.csrfToken;
         }
-    
+        
         async function downloadScript() {
             const url = document.getElementById("youtubeScriptUrl").value;
-            const csrfToken = await getCSRFToken();
+            const resultContainer = document.getElementById("transcription-result");
+            const transcriptionContainer = document.getElementById("transcription-container");
+            const loadingIndicator = document.getElementById("loadingIndicator");
+
+            if (!url) {
+                alert("Please enter a YouTube URL");
+                return;
+            }
+
+            if (!isValidYouTubeURL(url)) {
+                alert("Invalid YouTube URL. Please enter a valid YouTube link.");
+                return;
+            }
     
-            fetch('/yt_download_script/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({ youtube_url: url }),
-            })
-            .then(response => response.json())
-            .then(data => {
+            // Hide container initially
+            resultContainer.innerText = "";
+            transcriptionContainer.style.display = "none";
+            loadingIndicator.style.display = "block"; // Show loading indicator
+            
+            try {
+                const csrfToken = await getCSRFToken();
+                const response = await fetch('/yt_download_script/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ youtube_url: url }),
+                });
+    
+                const data = await response.json();
+    
                 if (data.success) {
-                    document.getElementById("transcription-result").innerText = "Transcribed Text: " + data.transcribed_text;
+                    resultContainer.innerText = data.transcribed_text;
+                    transcriptionContainer.style.display = "block"; // Show when data is received
                 } else {
                     alert("Error: " + data.error);
                 }
-            })
-            .catch(error => console.error('Error:', error));
+            } catch (error) {
+                console.error('Error:', error);
+                alert("Something went wrong. Please try again.");
+            } finally {
+                loadingIndicator.style.display = "none"; // Hide loading indicator
+            }
+        }
+    
+        document.getElementById("copyButton").addEventListener("click", function() {
+            const text = document.getElementById("transcription-result").innerText;
+            navigator.clipboard.writeText(text).catch(err => {
+                console.error("Failed to copy:", err);
+            });
+        });
+    
+        async function getCSRFToken() {
+            return "your-csrf-token"; // Replace with actual CSRF token retrieval
         }
     </script>
 
 
 </body>
+<footer>
+    <p>© 2025 YouTube Downloader, made with ❤️ by YTBridge.</p> 
+</footer>
 </html>
